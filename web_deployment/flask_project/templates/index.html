@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puerto Rico News Chatbot</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(120deg, #4b0082, #8a2be2);
+            color: #eae8f8;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .container {
+            background: #29254d;
+            padding: 0rem 2rem 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h2 {
+            color: #e0c3fc;
+            padding-top: 0px;
+        }
+
+        .chat-box {
+            background: #3e326f;
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message {
+            margin: 0.5rem 0;
+        }
+
+        .user-message {
+            color: #cba4ff;
+            text-align: right;
+            margin: 20px auto;
+        }
+
+        .bot-message {
+            color: #e3d8f3;
+            text-align: left;
+        }
+
+        input[type="text"] {
+            width: 80%;
+            padding: 0.8rem;
+            border-radius: 8px;
+            border: none;
+            margin-right: 10px;
+        }
+
+        button {
+            background: #6a4eb3;
+            color: white;
+            border: none;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #8a2be2;
+        }
+
+        .about-icon {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 24px;
+            color: #dcbbf4;
+            text-decoration: none;
+            background-color: #7826c5;
+            padding: 0.5rem;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0px 0px 10px rgb(42, 36, 81);
+        }
+
+        .about-icon:hover {
+            background-color: #9f03ed;
+            color: white;
+            box-shadow: 0px 0px 2px rgb(42, 36, 81);
+        }
+
+        /* Spinner styles */
+        .spinner {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Help Icon/Button -->
+    <a href="{{ url_for('about') }}" class="about-icon" title="About">&#x2753;</a>
+
+    <div class="container">
+        <h2>Puerto Rico News Chatbot</h2>
+
+        <div class="chat-box" id="chat-box">
+            <!-- Chat messages will be appended here -->
+        </div>
+
+        <input type="text" id="user-input" placeholder="Ask a question about Puerto Rico..." autocomplete="off" value="What is the economic impact of hurricanes in Puerto Rico?">
+        <button id="send-button">Send</button>
+    </div>
+
+    <!-- Spinner element -->
+    <div class="spinner" id="spinner"></div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const spinner = document.getElementById('spinner');
+
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function appendMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message', sender === 'user' ? 'user-message' : 'bot-message');
+            messageElement.textContent = message;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function toggleSpinner(show) {
+            spinner.style.display = show ? 'block' : 'none';
+        }
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            appendMessage(message, 'user');
+            userInput.value = '';
+
+            // Show spinner while fetching response
+            toggleSpinner(true);
+
+            fetch('/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ query: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                toggleSpinner(false); // Hide spinner on successful response
+
+                data = JSON.parse(data);
+
+                console.log(data)
+
+                if (data.title && data.answer && data.sources) {
+                    appendStructuredResponse(data);
+                } else if (data.error) {
+                    appendMessage('Error: ' + data.error, 'bot');
+                }
+            })
+            .catch(error => {
+                toggleSpinner(false); // Hide spinner on error
+                appendMessage('Error connecting to the server.', 'bot');
+            });
+        }
+
+        function appendStructuredResponse(data) {
+            appendMessage('Title: ' + data.title, 'bot');
+            appendMessage('Answer: ' + data.answer, 'bot');
+            appendMessage('Sources:', 'bot');
+            data.sources.forEach(source => {
+                appendMessage('- ' + source, 'bot');
+            });
+        }
+    </script>
+
+</body>
+</html>
